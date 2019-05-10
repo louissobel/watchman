@@ -288,6 +288,27 @@ class TestSymlink(WatchmanTestCase.WatchmanTestCase):
         self.assertWatchListContains(expected)
         self.assertFileList(root1prime, [".watchmanconfig", "file", "linkToDir"])
 
+    def test_watchDirUnderSymlink(self):
+        # A/link/dir -> B/dir
+        # (A/link --> B)
+        baseA = self.mkdtemp()
+        baseB = self.mkdtemp()
+        os.mkdir(os.path.join(baseB, "dir"))
+        with open(os.path.join(baseB, "dir", ".watchmanconfig"), "w") as f:
+            f.write(json.dumps({}))
+
+        self.touchRelative(os.path.join(baseB, "dir"), "file")
+        os.symlink(
+            baseB, os.path.join(baseA, "linkToParentDir")
+        )
+
+        watchDir = os.path.join(baseA, "linkToParentDir", "dir")
+        resolvedDir = os.path.join(baseB, "dir")
+        self.watchmanCommand("watch-project", watchDir)
+
+        self.assertWatchListContains([resolvedDir])
+        self.watchmanCommand("clock", watchDir)
+
     def test_watchSymlinkToDirContainsSymlink(self):
         def make_roots():
             # B/dir/link -> C/file
